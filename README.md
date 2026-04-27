@@ -89,19 +89,3 @@ mvn -DskipTests spring-boot:run
   3) Deben retornar los mensajes de **fallback**.
 
 ## Evidencia (capturas)
-
-Las capturas están en `assets/` y documentan el comportamiento **normal** y con **fallback**:
-
-- `Captura de pantalla 2026-04-27 080949.png` (Eureka: servicios registrados)
-- `Captura de pantalla 2026-04-27 081019.png` (Home OK)
-- `Captura de pantalla 2026-04-27 082519.png` (Fallback `/catalog`)
-- `Captura de pantalla 2026-04-27 082619.png` (Fallback `/firstcourse`)
-- `Captura de pantalla 2026-04-27 082956.png` (Home con fallback)
-- `Captura de pantalla 2026-04-27 083120.png` (OK `/catalog` y OK `/firstcourse`)
-
-![Eureka registrados](assets/Captura%20de%20pantalla%202026-04-27%20080949.png)
-![Home OK](assets/Captura%20de%20pantalla%202026-04-27%20081019.png)
-![Catalog fallback](assets/Captura%20de%20pantalla%202026-04-27%20082519.png)
-![Firstcourse fallback](assets/Captura%20de%20pantalla%202026-04-27%20082619.png)
-![Home fallback](assets/Captura%20de%20pantalla%202026-04-27%20082956.png)
-![Catalog y firstcourse OK](assets/Captura%20de%20pantalla%202026-04-27%20083120.png)

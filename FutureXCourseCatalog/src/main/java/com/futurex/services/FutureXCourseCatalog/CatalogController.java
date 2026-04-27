@@ -2,9 +2,9 @@ package com.futurex.services.FutureXCourseCatalog;
 
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.EurekaClient;
-import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
@@ -14,8 +14,8 @@ public class CatalogController {
     @Autowired
     private EurekaClient client;
 
-    @RequestMapping("/")
-    @HystrixCommand(fallbackMethod = "fallbackGetCatalogHome")
+    @GetMapping("/")
+    @CircuitBreaker(name = "courseService", fallbackMethod = "fallbackGetCatalogHome")
     public String getCatalogHome() {
         String courseAppMesage = "";
         //String courseAppURL = "http://localhost:8080/";
@@ -27,12 +27,12 @@ public class CatalogController {
         return("Welcome to FutureX Course Catalog "+courseAppMesage);
     }
 
-    public String fallbackGetCatalogHome(Throwable ex) {
-        return "Welcome to FutureX Course Catalog (fallback: course service unavailable)";
+    public String fallbackGetCatalogHome(Exception ex) {
+        return "Fallback: Unable to retrieve course catalog home.";
     }
 
-    @RequestMapping("/catalog")
-    @HystrixCommand(fallbackMethod = "fallbackGetCatalog")
+    @GetMapping("/catalog")
+    @CircuitBreaker(name = "courseService", fallbackMethod = "fallbackGetCatalog")
     public String getCatalog() {
         String courses = "";
         //String courseAppURL = "http://localhost:8080/courses";
@@ -45,12 +45,12 @@ public class CatalogController {
         return("Our courses are "+courses);
     }
 
-    public String fallbackGetCatalog(Throwable ex) {
-        return "Our courses are (fallback: unable to retrieve courses right now)";
+    public String fallbackGetCatalog(Exception ex) {
+        return "Fallback: Unable to retrieve course catalog.";
     }
 
-    @RequestMapping("/firstcourse")
-    @HystrixCommand(fallbackMethod = "fallbackGetSpecificCourse")
+    @GetMapping("/firstcourse")
+    @CircuitBreaker(name = "courseService", fallbackMethod = "fallbackGetSpecificCourse")
     public String getSpecificCourse() {
         Course course = new Course();
         //String courseAppURL = "http://localhost:8080/1";
@@ -64,8 +64,8 @@ public class CatalogController {
         return("Our first course is "+course.getCoursename());
     }
 
-    public String fallbackGetSpecificCourse(Throwable ex) {
-        return "Our first course is (fallback: course service unavailable)";
+    public String fallbackGetSpecificCourse(Exception ex) {
+        return "Fallback: Unable to retrieve the first course.";
     }
 
 }
