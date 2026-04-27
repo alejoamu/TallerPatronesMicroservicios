@@ -1,4 +1,4 @@
-# Taller Microservicios: Service Discovery + Circuit Breaker (Hystrix)
+# Taller Microservicios: Service Discovery + Circuit Breaker (Resilence4J)
 
 Este repositorio contiene 3 microservicios Spring Boot que implementan:
 
