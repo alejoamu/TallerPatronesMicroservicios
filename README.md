@@ -1,107 +1,89 @@
-# Taller Microservicios: Service Discovery + Circuit Breaker (Hystrix)
+# Patrones de arquitectura en microservicios
 
-Este repositorio contiene 3 microservicios Spring Boot que implementan:
+**Integrantes**
 
-- **Service Discovery (Eureka)**: el servicio catálogo descubre dinámicamente al servicio de cursos por nombre.
-- **Circuit Breaker (Hystrix)**: el servicio catálogo responde con **fallback** cuando el servicio de cursos falla o está caído.
+- Alejandro Amu  
+- Alejandro Torres  
+- David Henao  
+- Juan Calderon  
 
-## Repositorios / módulos
+Trabajo basado en la guía del taller sobre **Service Discovery (Eureka)** y **Circuit Breaker con Resilience4j**, usando los proyectos tipo *FutureX* (servidor Eureka, servicio de cursos y servicio catálogo).
 
-- **`FutureXEurekaServer`**: `fx-discovery-server` (Eureka Server) — puerto **8761**
-- **`FutureXCourseApp`**: `fx-course-service` (Course Service) — puerto **8001**
-- **`FutureXCourseCatalog`**: `fx-catalog-service` (Catalog Service) — puerto **8002**
+---
 
-## Criterios de calificación (cómo se cumple)
+## Qué hace este repo
 
-### 1) Comprensión del Service Discovery (40%)
+Hay **tres aplicaciones Spring Boot** que levantan por separado:
 
-- **Cómo descubre `fx-catalog-service` a `fx-course-service`**:
-  - `fx-course-service` y `fx-catalog-service` se registran en Eureka (`fx-discovery-server`).
-  - En `CatalogController`, el catálogo consulta Eureka por el nombre lógico **`fx-course-service`** y obtiene su URL real (host/puerto) antes de llamar con `RestTemplate`.
+| Módulo | Rol | Puerto |
+|--------|-----|--------|
+| `FutureXEurekaServer` | Registro Eureka (`fx-discovery-server`) | **8761** |
+| `FutureXCourseApp` | API de cursos (`fx-course-service`) | **8001** |
+| `FutureXCourseCatalog` | Catálogo que descubre al curso por nombre y tolera fallos (`fx-catalog-service`) | **8002** |
 
-- **Demostración por endpoints** (en `fx-catalog-service`):
-  - `GET http://localhost:8002/` → llama `fx-course-service /`
-  - `GET http://localhost:8002/catalog` → llama `fx-course-service /courses`
-  - `GET http://localhost:8002/firstcourse` → llama `fx-course-service /{id}`
+El catálogo **no** usa una URL fija del otro microservicio: obtiene la dirección desde Eureka (`fx-course-service`) y llama con `RestTemplate`. Sobre esas llamadas va **Resilience4j** (`@CircuitBreaker`, instancia `courseService`): si el curso no responde, entran los métodos de **fallback** en lugar de tumbar la respuesta al cliente.
 
-### 2) Implementación de Hystrix (60%)
+La configuración que gobierna el breaker en los endpoints del catálogo está en  
+`FutureXCourseCatalog/src/main/resources/application.properties` (`resilience4j.circuitbreaker.instances.courseService.*`).  
+Lo opcional del taller (bean `Resilience4JConfig`, Actuator) está también en ese módulo.
 
-- **Configuración correcta de Hystrix**:
-  - Dependencia `spring-cloud-starter-netflix-hystrix` en `FutureXCourseCatalog/pom.xml`
-  - AOP habilitado para interceptar `@HystrixCommand` (ver `HystrixConfig.java`)
+---
 
-- **Fallbacks implementados**:
-  - Cada endpoint del catálogo tiene un método fallback asociado (misma salida `String`).
+## Cómo ejecutarlo
 
-- **Uso de `@HystrixCommand`**:
-  - En `CatalogController`, cada método que llama a `fx-course-service` está anotado con:
-    - `@HystrixCommand(fallbackMethod = "...")`
+### Opción rápida (Windows)
 
-- **Propiedades de Hystrix**:
-  - En `FutureXCourseCatalog/src/main/resources/application.properties` se ajustan timeouts y umbrales con `hystrix.command.default.*`.
+En la raíz del repositorio:
 
-- **Demostración del Circuit Breaker**:
-  - Al apagar `fx-course-service`, los endpoints del catálogo devuelven el **fallback** en lugar de un error 500.
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\levantar-servicios.ps1
+```
 
-- **Cómo Hystrix mejora resiliencia**:
-  - Evita que fallas/latencias del servicio de cursos propaguen errores al servicio catálogo.
-  - Devuelve una respuesta degradada (fallback) y protege el sistema de cascadas de fallos.
+El script abre **tres ventanas** de PowerShell y arranca Eureka → Course → Catalog con una pausa entre cada uno para que el registro no falle al arranque. Para la demo de caída del curso, pueden detener solo la ventana del **Course** con `Ctrl+C`.
 
-## Ejecución local (PowerShell o Git Bash)
+### Opción manual
 
-En 3 terminales separadas:
+Tres terminales, en este orden. En cada una, entrar a la carpeta y ejecutar:
 
-1. **Eureka Server**
-
-```bash
+```text
 cd FutureXEurekaServer
-mvn -DskipTests spring-boot:run
+.\mvnw.cmd -DskipTests spring-boot:run
 ```
 
-2. **Course Service**
-
-```bash
+```text
 cd FutureXCourseApp
-mvn -DskipTests spring-boot:run
+.\mvnw.cmd -DskipTests spring-boot:run
 ```
 
-3. **Catalog Service**
-
-```bash
+```text
 cd FutureXCourseCatalog
-mvn -DskipTests spring-boot:run
+.\mvnw.cmd -DskipTests spring-boot:run
 ```
 
-## Prueba rápida (demo)
+En **PowerShell** hace falta el prefijo `.\` antes de `mvnw.cmd`. Si tienen `mvn` en el PATH, pueden usar `mvn -DskipTests spring-boot:run` en cada proyecto.
 
-- **Eureka UI**: `http://localhost:8761/`  
-  Debe mostrar **FX-COURSE-SERVICE** y **FX-CATALOG-SERVICE** registrados.
+---
 
-- Con los 3 arriba:
-  - `http://localhost:8002/catalog` debe retornar el listado (vía llamada al course service).
-  - `http://localhost:8002/firstcourse` debe retornar el nombre del primer curso.
+## Qué probar en el navegador
 
-- **Prueba de fallback**:
-  1) Detener `FutureXCourseApp` (CTRL+C).  
-  2) Volver a entrar a:
-     - `http://localhost:8002/catalog`
-     - `http://localhost:8002/firstcourse`
-  3) Deben retornar los mensajes de **fallback**.
+| URL | Idea |
+|-----|------|
+| http://localhost:8761/ | Panel Eureka: deberían listarse los servicios registrados |
+| http://localhost:8002/catalog | Catálogo → llama al curso en `/courses` |
+| http://localhost:8002/firstcourse | Primer curso vía curso en `/1` |
+| http://localhost:8002/actuator/health | (Opcional) Salud + estado del breaker `courseService` |
 
-## Evidencia (capturas)
+**Demo de resiliencia:** con todo funcionando, abran `/catalog`. Después detengan solo **FutureXCourseApp** y vuelvan a pedir `/catalog` o `/firstcourse`: deberían aparecer los mensajes de **fallback**.
 
-Las capturas están en `assets/` y documentan el comportamiento **normal** y con **fallback**:
+---
 
-- `Captura de pantalla 2026-04-27 080949.png` (Eureka: servicios registrados)
-- `Captura de pantalla 2026-04-27 081019.png` (Home OK)
-- `Captura de pantalla 2026-04-27 082519.png` (Fallback `/catalog`)
-- `Captura de pantalla 2026-04-27 082619.png` (Fallback `/firstcourse`)
-- `Captura de pantalla 2026-04-27 082956.png` (Home con fallback)
-- `Captura de pantalla 2026-04-27 083120.png` (OK `/catalog` y OK `/firstcourse`)
+## Más detalle para presentación
 
-![Eureka registrados](assets/Captura%20de%20pantalla%202026-04-27%20080949.png)
-![Home OK](assets/Captura%20de%20pantalla%202026-04-27%20081019.png)
-![Catalog fallback](assets/Captura%20de%20pantalla%202026-04-27%20082519.png)
-![Firstcourse fallback](assets/Captura%20de%20pantalla%202026-04-27%20082619.png)
-![Home fallback](assets/Captura%20de%20pantalla%202026-04-27%20082956.png)
-![Catalog y firstcourse OK](assets/Captura%20de%20pantalla%202026-04-27%20083120.png)
+En **`GUIA_PRUEBAS_Y_PRESENTACION.md`** está el guion más largo: orden de la demo, qué contar si preguntan por el código y cómo interpretar `/actuator/health`. Este README solo resume comandos y URLs.
+
+---
+
+## Evidencia
+
+Si documentan la práctica con capturas, pueden guardarlas en una carpeta `assets/` y referenciarlas desde el informe o la presentación.
